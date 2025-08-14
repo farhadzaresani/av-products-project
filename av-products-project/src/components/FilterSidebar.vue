@@ -172,7 +172,6 @@ const toggleMerchant = (merchantId) => {
     newFilter.splice(index, 1);
   } else {
     newFilter.push(merchantId);
-    border;
   }
 
   emit("update:merchantFilter", newFilter);

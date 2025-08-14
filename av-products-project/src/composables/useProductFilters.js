@@ -22,6 +22,75 @@ export function useProductFilters() {
   const merchantFilter = ref([]);
   const merchantSearch = ref("");
 
+  const isUpdatingURL = ref(false); // Flag to prevent infinite loops
+
+  // Initialize filters from URL query parameters
+  const initializeFiltersFromURL = () => {
+    const { categories: urlCategories, merchants: urlMerchants } = route.query;
+
+    if (urlCategories) {
+      // Handle comma-separated string format
+      const categoryArray =
+        typeof urlCategories === "string"
+          ? urlCategories.split(",").filter((id) => id && id !== "")
+          : Array.isArray(urlCategories)
+          ? urlCategories.filter((id) => id && id !== "")
+          : [urlCategories].filter((id) => id && id !== "");
+      categoryFilter.value = categoryArray;
+    }
+
+    if (urlMerchants) {
+      // Handle comma-separated string format
+      const merchantArray =
+        typeof urlMerchants === "string"
+          ? urlMerchants.split(",").filter((id) => id && id !== "")
+          : Array.isArray(urlMerchants)
+          ? urlMerchants.filter((id) => id && id !== "")
+          : [urlMerchants].filter((id) => id && id !== "");
+      merchantFilter.value = merchantArray;
+    }
+  };
+
+  // Update URL with current filter values
+  const updateURLWithFilters = () => {
+    isUpdatingURL.value = true; // Set flag to true
+    const query = { ...route.query };
+
+    if (categoryFilter.value.length > 0) {
+      // Store as comma-separated string
+      query.categories = categoryFilter.value.join(",");
+    } else {
+      delete query.categories;
+    }
+
+    if (merchantFilter.value.length > 0) {
+      // Store as comma-separated string
+      query.merchants = merchantFilter.value.join(",");
+    } else {
+      delete query.merchants;
+    }
+
+    // Remove page from URL when filters change
+    delete query.page;
+
+    console.log("Updating URL with filters:", query);
+    router.replace({ query });
+    setTimeout(() => {
+      isUpdatingURL.value = false; // Reset flag after a short delay
+    }, 100); // Small delay to allow router.replace to complete
+  };
+
+  const filteredMerchants = computed(() => {
+    if (!merchantSearch.value) return merchants.value;
+    return merchants.value.filter(
+      (merchant) =>
+        merchant.name
+          ?.toLowerCase()
+          .includes(merchantSearch.value.toLowerCase()) ||
+        merchant.id?.toString().includes(merchantSearch.value)
+    );
+  });
+
   const fetchCategories = async () => {
     try {
       categoriesLoading.value = true;
@@ -63,6 +132,12 @@ export function useProductFilters() {
   const fetchProducts = async (page = 0, append = false) => {
     try {
       console.log("fetchProducts called", { page, append });
+      console.log("Current filters:", {
+        categoryFilter: categoryFilter.value,
+        merchantFilter: merchantFilter.value,
+        merchantFilterType: typeof merchantFilter.value,
+        merchantFilterLength: merchantFilter.value?.length,
+      });
       productsLoading.value = true;
 
       const requestBody = {};
@@ -74,10 +149,13 @@ export function useProductFilters() {
       }
 
       if (merchantFilter.value.length > 0) {
+        console.log("Adding merchant filter to request:", merchantFilter.value);
         requestBody.merchantIds = merchantFilter.value.map((id) =>
           parseInt(id)
         );
       }
+
+      console.log("Request body:", requestBody);
 
       const response = await fetch(
         `https://interview-api.azkivam.com/api/v1/products?size=${pageSize.value}&page=${page}`,
@@ -172,19 +250,45 @@ export function useProductFilters() {
     return categoryFilter.value.length + merchantFilter.value.length;
   });
 
-  watch([categoryFilter, merchantFilter], () => {
-    console.log("Filters changed, refetching products");
-    resetAndFetchProducts();
-  });
+  watch(
+    [categoryFilter, merchantFilter],
+    (newValues, oldValues) => {
+      console.log("Filters changed, refetching products", {
+        newValues,
+        oldValues,
+        categoryFilter: categoryFilter.value,
+        merchantFilter: merchantFilter.value,
+      });
+      updateURLWithFilters();
+      resetAndFetchProducts();
+    },
+    { deep: true }
+  );
+
+  // Watch for route changes to handle browser back/forward navigation
+  watch(
+    () => route.query,
+    (newQuery, oldQuery) => {
+      // Only update if the change didn't come from our own filter updates
+      if (newQuery !== oldQuery && !isUpdatingURL.value) {
+        console.log("Route query changed, updating filters");
+        initializeFiltersFromURL();
+        resetAndFetchProducts();
+      }
+    },
+    { deep: true }
+  );
 
   const clearFilters = () => {
     categoryFilter.value = [];
     merchantFilter.value = [];
     merchantSearch.value = "";
+    updateURLWithFilters();
   };
 
   onMounted(async () => {
     await Promise.all([fetchCategories(), fetchMerchants()]);
+    initializeFiltersFromURL();
     await fetchProducts(0, false);
   });
 
@@ -205,6 +309,7 @@ export function useProductFilters() {
     categoryFilter,
     merchantFilter,
     merchantSearch,
+    filteredMerchants,
 
     activeFilterCount,
 

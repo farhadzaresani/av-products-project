@@ -28,7 +28,6 @@
           :has-more-products="hasMoreProducts"
           @load-more="loadMoreProducts"
         />
-        
       </div>
     </div>
 
@@ -223,15 +222,9 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.products-skeleton {
-  width: 100%;
-}
 
-.skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-}
+
+
 
 .product-skeleton-item {
   background: white;
@@ -270,10 +263,7 @@ onUnmounted(() => {
     height: 52px;
   }
 
-  .skeleton-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 16px;
-  }
+  
 }
 
 @media (max-width: 480px) {
@@ -293,9 +283,6 @@ onUnmounted(() => {
     height: 48px;
   }
 
-  .skeleton-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
+
 }
 </style>

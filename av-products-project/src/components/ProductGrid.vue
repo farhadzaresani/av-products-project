@@ -10,19 +10,20 @@
         :key="product.id"
       >
         <ProductCard :product="product" />
-        <div v-if="!!productsLoading" class="products-skeleton">
-          <div class="skeleton-grid">
-            <a-skeleton
-              v-for="i in 8"
-              :key="i"
-              active
-              :paragraph="{ rows: 3 }"
-              class="product-skeleton-item"
-            />
-          </div>
-        </div>
       </a-col>
     </a-row>
+
+    <div v-if="loading" class="products-skeleton">
+      <div class="skeleton-grid">
+        <a-skeleton
+          v-for="i in 8"
+          :key="i"
+          active
+          :paragraph="{ rows: 3 }"
+          class="product-skeleton-item"
+        />
+      </div>
+    </div>
 
     <div v-if="!hasMoreProducts && products.length > 0" class="end-of-products">
       <a-divider>شما به انتهای همه محصولات رسیده‌اید</a-divider>
@@ -95,7 +96,7 @@ const createObserver = () => {
       }
     },
     {
-      rootMargin: "200px", 
+      rootMargin: "200px",
       threshold: 0.1,
     }
   );
@@ -219,5 +220,21 @@ onUnmounted(() => {
   margin-top: 16px;
   color: #8c8c8c;
   font-size: 14px;
+}
+.products-skeleton {
+  width: 100%;
+}
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.skeleton-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.skeleton-grid {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
 }
 </style>
