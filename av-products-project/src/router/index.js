@@ -11,6 +11,12 @@ const routes = [
     name: "Products",
     component: Products,
   },
+  {
+    path: "/products/:categoryId",
+    name: "ProductsByCategory",
+    component: Products,
+    props: true,
+  },
 ];
 
 const router = createRouter({

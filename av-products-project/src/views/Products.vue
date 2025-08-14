@@ -79,12 +79,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { FilterOutlined, ArrowUpOutlined } from "@ant-design/icons-vue";
 import { useProductFilters } from "../composables/useProductFilters";
 import FilterSidebar from "../components/FilterSidebar.vue";
 import MobileFilterDrawer from "../components/MobileFilterDrawer.vue";
 import ProductGrid from "../components/ProductGrid.vue";
+
+// Define props for route parameters
+const props = defineProps({
+  categoryId: {
+    type: String,
+    default: null,
+  },
+});
 
 const {
   categories,
@@ -100,11 +108,23 @@ const {
   hasMoreProducts,
   clearFilters,
   loadMoreProducts,
-} = useProductFilters();
+  setCategoryFromRoute,
+} = useProductFilters(props.categoryId);
 
 const showMobileFilters = ref(false);
 
 const showGoToTop = ref(false);
+
+// Watch for categoryId prop changes
+watch(
+  () => props.categoryId,
+  (newCategoryId) => {
+    if (newCategoryId) {
+      setCategoryFromRoute(newCategoryId);
+    }
+  },
+  { immediate: true }
+);
 
 const handleScroll = () => {
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -222,10 +242,6 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-
-
-
-
 .product-skeleton-item {
   background: white;
   padding: 20px;
@@ -262,8 +278,6 @@ onUnmounted(() => {
     width: 52px;
     height: 52px;
   }
-
-  
 }
 
 @media (max-width: 480px) {
@@ -282,7 +296,5 @@ onUnmounted(() => {
     width: 48px;
     height: 48px;
   }
-
-
 }
 </style>

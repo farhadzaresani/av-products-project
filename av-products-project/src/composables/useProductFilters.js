@@ -1,7 +1,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-export function useProductFilters() {
+export function useProductFilters(routeCategoryId = null) {
   const route = useRoute();
   const router = useRouter();
 
@@ -26,17 +26,26 @@ export function useProductFilters() {
 
   // Initialize filters from URL query parameters
   const initializeFiltersFromURL = () => {
-    const { categories: urlCategories, merchants: urlMerchants } = route.query;
+    const { merchants: urlMerchants } = route.query;
 
-    if (urlCategories) {
-      // Handle comma-separated string format
-      const categoryArray =
-        typeof urlCategories === "string"
-          ? urlCategories.split(",").filter((id) => id && id !== "")
-          : Array.isArray(urlCategories)
-          ? urlCategories.filter((id) => id && id !== "")
-          : [urlCategories].filter((id) => id && id !== "");
-      categoryFilter.value = categoryArray;
+    // Handle category filter from route parameter first
+    if (routeCategoryId) {
+      categoryFilter.value = [routeCategoryId];
+    } else {
+      // Fall back to query parameter if no route category
+      const { categories: urlCategories } = route.query;
+      if (urlCategories) {
+        // Handle comma-separated string format for backward compatibility
+        const categoryArray =
+          typeof urlCategories === "string"
+            ? urlCategories.split(",").filter((id) => id && id !== "")
+            : Array.isArray(urlCategories)
+            ? urlCategories.filter((id) => id && id !== "")
+            : [urlCategories].filter((id) => id && id !== "");
+        // For single-select, only take the first category
+        categoryFilter.value =
+          categoryArray.length > 0 ? [categoryArray[0]] : [];
+      }
     }
 
     if (urlMerchants) {
@@ -56,10 +65,11 @@ export function useProductFilters() {
     isUpdatingURL.value = true; // Set flag to true
     const query = { ...route.query };
 
-    if (categoryFilter.value.length > 0) {
+    // Only update category in query if not using route-based category
+    if (!routeCategoryId && categoryFilter.value.length > 0) {
       // Store as comma-separated string
       query.categories = categoryFilter.value.join(",");
-    } else {
+    } else if (!routeCategoryId) {
       delete query.categories;
     }
 
@@ -78,6 +88,15 @@ export function useProductFilters() {
     setTimeout(() => {
       isUpdatingURL.value = false; // Reset flag after a short delay
     }, 100); // Small delay to allow router.replace to complete
+  };
+
+  // Function to set category from route parameter
+  const setCategoryFromRoute = (categoryId) => {
+    if (categoryId) {
+      categoryFilter.value = [categoryId];
+    } else {
+      categoryFilter.value = [];
+    }
   };
 
   const filteredMerchants = computed(() => {
@@ -259,6 +278,34 @@ export function useProductFilters() {
         categoryFilter: categoryFilter.value,
         merchantFilter: merchantFilter.value,
       });
+
+      // Handle category route navigation for single-select
+      if (categoryFilter.value.length === 1) {
+        const selectedCategory = categoryFilter.value[0];
+
+        if (!routeCategoryId || routeCategoryId !== selectedCategory) {
+          // Navigate to category-specific route while preserving merchant filters
+          const query = { ...route.query };
+          if (merchantFilter.value.length > 0) {
+            query.merchants = merchantFilter.value.join(",");
+          }
+          router.push({
+            name: "ProductsByCategory",
+            params: { categoryId: selectedCategory },
+            query,
+          });
+          return; // Don't update URL or refetch here as the route change will handle it
+        }
+      } else if (categoryFilter.value.length === 0 && routeCategoryId) {
+        // Navigate back to main products page while preserving merchant filters
+        const query = { ...route.query };
+        if (merchantFilter.value.length > 0) {
+          query.merchants = merchantFilter.value.join(",");
+        }
+        router.push({ name: "Products", query });
+        return; // Don't update URL or refetch here as the route change will handle it
+      }
+
       updateURLWithFilters();
       resetAndFetchProducts();
     },
@@ -279,11 +326,44 @@ export function useProductFilters() {
     { deep: true }
   );
 
+  // Watch for route parameter changes (for category routes)
+  watch(
+    () => route.params.categoryId,
+    (newCategoryId, oldCategoryId) => {
+      if (newCategoryId !== oldCategoryId) {
+        console.log("Route category changed, updating filters");
+        if (newCategoryId) {
+          categoryFilter.value = [newCategoryId];
+        } else {
+          categoryFilter.value = [];
+        }
+        // Preserve merchant filters when route changes
+        const { merchants: urlMerchants } = route.query;
+        if (urlMerchants) {
+          const merchantArray =
+            typeof urlMerchants === "string"
+              ? urlMerchants.split(",").filter((id) => id && id !== "")
+              : Array.isArray(urlMerchants)
+              ? urlMerchants.filter((id) => id && id !== "")
+              : [urlMerchants].filter((id) => id && id !== "");
+          merchantFilter.value = merchantArray;
+        }
+        resetAndFetchProducts();
+      }
+    }
+  );
+
   const clearFilters = () => {
     categoryFilter.value = [];
     merchantFilter.value = [];
     merchantSearch.value = "";
-    updateURLWithFilters();
+
+    // If we're on a category-specific route, navigate back to main products page
+    if (routeCategoryId) {
+      router.push({ name: "Products" });
+    } else {
+      updateURLWithFilters();
+    }
   };
 
   onMounted(async () => {
@@ -319,5 +399,6 @@ export function useProductFilters() {
     loadMoreProducts,
     resetAndFetchProducts,
     clearFilters,
+    setCategoryFromRoute,
   };
 }

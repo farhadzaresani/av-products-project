@@ -152,16 +152,14 @@ const hasActiveFilters = computed(() => {
 });
 
 const toggleCategory = (categoryId) => {
-  const newFilter = [...props.categoryFilter];
-  const index = newFilter.indexOf(categoryId);
-
-  if (index > -1) {
-    newFilter.splice(index, 1);
+  // Single-select logic: if category is already selected, deselect it; otherwise, select it
+  if (props.categoryFilter.includes(categoryId)) {
+    // Category is already selected, remove it
+    emit("update:categoryFilter", []);
   } else {
-    newFilter.push(categoryId);
+    // Select new category (replace any existing category)
+    emit("update:categoryFilter", [categoryId]);
   }
-
-  emit("update:categoryFilter", newFilter);
 };
 
 const toggleMerchant = (merchantId) => {
@@ -200,8 +198,8 @@ const getMerchantName = (merchantId) => {
 };
 
 const removeCategory = (categoryId) => {
-  const newFilter = props.categoryFilter.filter((id) => id !== categoryId);
-  emit("update:categoryFilter", newFilter);
+  // For single-select, just clear the category filter
+  emit("update:categoryFilter", []);
 };
 
 const removeMerchant = (merchantId) => {
